@@ -1,7 +1,7 @@
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
-  * @file           : main.c
+  * @file           : main. c
   * @brief          : Main program body with ST3215 servo control
   ******************************************************************************
   */
@@ -13,6 +13,8 @@
 
 /* USER CODE BEGIN Includes */
 #include "sts3215_servo.h"
+#include <stdio.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -22,7 +24,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define STS3215_ID 1              // Servo ID (default is 1)
+#define STS3215_ID 5              // Servo ID (default is 1)
 #define SERVO_TEST_DELAY 2000     // ms delay between commands
 /* USER CODE END PD */
 
@@ -35,6 +37,7 @@
 
 /* USER CODE BEGIN PV */
 uint32_t sys_tick_counter = 0;
+char debug_buf[256];  // Buffer for debug messages
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -43,10 +46,15 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN FPP */
 void TestServoMotorMode(void);
 void TestServoPositionMode(void);
+void Debug_Print(const char *msg);
 /* USER CODE END FPP */
 
 /* USER CODE BEGIN 0 */
-
+// Debug print function using UART2
+void Debug_Print(const char *msg)
+{
+  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+}
 /* USER CODE END 0 */
 
 /**
@@ -80,11 +88,16 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   // Print startup message
-  printf("ST3215 Servo Motor Control Started!\r\n");
-  printf("Servo ID: %d\r\n", STS3215_ID);
+  Debug_Print("\r\n\r\n");
+  Debug_Print("========================================\r\n");
+  Debug_Print("  ST3215 Servo Motor Control Started!   \r\n");
+  Debug_Print("========================================\r\n");
+
+  sprintf(debug_buf, "Servo ID:  %d\r\n", STS3215_ID);
+  Debug_Print(debug_buf);
 
   // Set servo to silent mode (no response feedback)
-  printf("Setting servo to silent mode...\r\n");
+  Debug_Print("Setting servo to silent mode...\r\n");
   STS3215SetSilentMode(STS3215_ID);
   HAL_Delay(100);
 
@@ -98,12 +111,14 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    printf("\n========== TEST 1: MOTOR MODE ==========\r\n");
+    Debug_Print("\r\n>> Code is running - ST3215 Controller Active\r\n");
+
+    Debug_Print("\r\n========== TEST 1: MOTOR MODE ==========\r\n");
     TestServoMotorMode();
 
     HAL_Delay(3000);
 
-    printf("\n========== TEST 2: POSITION MODE ==========\r\n");
+    Debug_Print("\r\n========== TEST 2: POSITION MODE ==========\r\n");
     TestServoPositionMode();
 
     HAL_Delay(3000);
@@ -126,9 +141,9 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL16;
+  RCC_OscInitStruct.PLL. PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct. PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
+  RCC_OscInitStruct.PLL. PLLMUL = RCC_PLL_MUL16;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -136,10 +151,10 @@ void SystemClock_Config(void)
 
   /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+  RCC_ClkInitStruct. ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct. AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
@@ -156,27 +171,29 @@ void SystemClock_Config(void)
   */
 void TestServoMotorMode(void)
 {
-  printf("Switching to MOTOR MODE...\r\n");
+  Debug_Print("Switching to MOTOR MODE...\r\n");
   STS3215SetMotorMode(STS3215_ID);
   HAL_Delay(200);
 
   // Rotate forward at speed 2000
-  printf("Rotating FORWARD at speed 2000.. .\r\n");
+  sprintf(debug_buf, "Rotating FORWARD at speed %d.. .\r\n", 2000);
+  Debug_Print(debug_buf);
   STS3215SetSpeed(STS3215_ID, 2000);
   HAL_Delay(SERVO_TEST_DELAY);
 
   // Stop
-  printf("Stopping motor...\r\n");
+  Debug_Print("Stopping motor...\r\n");
   STS3215SetSpeed(STS3215_ID, 0);
   HAL_Delay(500);
 
   // Rotate backward at speed -2000
-  printf("Rotating BACKWARD at speed -2000.. .\r\n");
+  sprintf(debug_buf, "Rotating BACKWARD at speed %d...\r\n", -2000);
+  Debug_Print(debug_buf);
   STS3215SetSpeed(STS3215_ID, -2000);
   HAL_Delay(SERVO_TEST_DELAY);
 
   // Stop
-  printf("Stopping motor...\r\n");
+  Debug_Print("Stopping motor...\r\n");
   STS3215SetSpeed(STS3215_ID, 0);
   HAL_Delay(500);
 }
@@ -186,27 +203,31 @@ void TestServoMotorMode(void)
   */
 void TestServoPositionMode(void)
 {
-  printf("Switching to SERVO (POSITION) MODE...\r\n");
+  Debug_Print("Switching to SERVO (POSITION) MODE...\r\n");
   STS3215SetServoMode(STS3215_ID);
   HAL_Delay(200);
 
   // Move to position 256 (center)
-  printf("Moving to CENTER position (256)...\r\n");
+  sprintf(debug_buf, "Moving to CENTER position (%d)...\r\n", 256);
+  Debug_Print(debug_buf);
   STS3215TurnToPosition(STS3215_ID, 256, 500, 500, 100);
   HAL_Delay(SERVO_TEST_DELAY);
 
   // Move to position 512 (one direction)
-  printf("Moving to position 512.. .\r\n");
+  sprintf(debug_buf, "Moving to position %d...\r\n", 512);
+  Debug_Print(debug_buf);
   STS3215TurnToPosition(STS3215_ID, 512, 500, 500, 100);
   HAL_Delay(SERVO_TEST_DELAY);
 
   // Move to position 0 (other direction)
-  printf("Moving to position 0...\r\n");
+  sprintf(debug_buf, "Moving to position %d.. .\r\n", 0);
+  Debug_Print(debug_buf);
   STS3215TurnToPosition(STS3215_ID, 0, 500, 500, 100);
   HAL_Delay(SERVO_TEST_DELAY);
 
   // Back to center
-  printf("Moving back to CENTER position (256)...\r\n");
+  sprintf(debug_buf, "Moving back to CENTER position (%d)...\r\n", 256);
+  Debug_Print(debug_buf);
   STS3215TurnToPosition(STS3215_ID, 256, 500, 500, 100);
   HAL_Delay(SERVO_TEST_DELAY);
 }
