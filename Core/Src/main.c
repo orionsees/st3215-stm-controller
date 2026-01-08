@@ -2,7 +2,7 @@
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : ST3215 Servo Motor Control - Full Library Demo
+  * @brief          : ST3215 Servo Controller - Fixed Version
   ******************************************************************************
   */
 /* USER CODE END Header */
@@ -15,35 +15,162 @@
 #include "sts3215.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 /* USER CODE END Includes */
 
+/*===========================================================================*/
+/*              CONFIGURATION - MODIFY TO MATCH YOUR SETUP                   */
+/*===========================================================================*/
 /* USER CODE BEGIN PD */
-#define SERVO_ID 5
+#define NUM_SERVOS 5
+static u8 servo_ids[NUM_SERVOS] = {1, 2, 3, 4, 5};
+
+#define RX_BUFFER_SIZE 128
+#define FEEDBACK_INTERVAL_MS 200   // Slower:  200ms (5Hz) instead of 50ms
 /* USER CODE END PD */
 
 /* USER CODE BEGIN PV */
 STS3215_HandleTypeDef hservo;
-STS3215_FeedbackTypeDef feedback;
-char debug_buf[256];
+STS3215_FeedbackTypeDef feedback[NUM_SERVOS];
+char tx_buf[128];
+
+// Command reception - polling based (more reliable than interrupt for this use case)
+char rx_buffer[RX_BUFFER_SIZE];
+uint16_t rx_index = 0;
+
+// Timing
+uint32_t last_feedback_time = 0;
 /* USER CODE END PV */
 
-/* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 
 /* USER CODE BEGIN PFP */
-void Debug_Print(const char *msg);
-void Demo_PositionMode(void);
-void Demo_WheelMode(void);
-void Demo_ReadFeedback(void);
-void Demo_MultiServo(void);
+void PC_Send(const char *msg);
+void SendFeedbackToPC(void);
+void CheckForCommand(void);
+void ProcessCommand(char *cmd);
+void ExecutePosAll(s16 position, u16 speed, u8 acc);
+void ExecuteStop(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-void Debug_Print(const char *msg)
+
+void PC_Send(const char *msg)
 {
-    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), 100);
 }
+
+void SendFeedbackToPC(void)
+{
+    for(int i = 0; i < NUM_SERVOS; i++) {
+        u8 id = servo_ids[i];
+        int result = STS3215_FeedBack(&hservo, id, &feedback[i]);
+
+        if(result > 0) {
+            sprintf(tx_buf, "$FB,%d,%d,%d,%d,%d,%d,%d,%d\n",
+                    id,
+                    feedback[i].Position,
+                    feedback[i].Speed,
+                    feedback[i].Load,
+                    feedback[i].Temperature,
+                    feedback[i].Voltage,
+                    feedback[i].Current,
+                    feedback[i].Moving);
+        } else {
+            sprintf(tx_buf, "$FB,%d,OFFLINE\n", id);
+        }
+        PC_Send(tx_buf);
+        HAL_Delay(5);  // Small delay between each servo
+    }
+    PC_Send("$END\n");
+}
+
+void CheckForCommand(void)
+{
+    uint8_t byte;
+
+    // Check if data available (non-blocking)
+    while(HAL_UART_Receive(&huart2, &byte, 1, 1) == HAL_OK) {
+        if(byte == '\n' || byte == '\r') {
+            if(rx_index > 0) {
+                rx_buffer[rx_index] = '\0';
+                ProcessCommand(rx_buffer);
+                rx_index = 0;
+            }
+        } else {
+            if(rx_index < RX_BUFFER_SIZE - 1) {
+                rx_buffer[rx_index++] = byte;
+            }
+        }
+    }
+}
+
+void ProcessCommand(char *cmd)
+{
+    // Debug: echo received command
+    sprintf(tx_buf, "$DBG,Received:%s\n", cmd);
+    PC_Send(tx_buf);
+
+    // Check for valid command start
+    if(cmd[0] != '$') return;
+
+    // Parse command
+    if(strstr(cmd, "$CMD,CENTER") != NULL) {
+        PC_Send("$ACK,CENTER,OK\n");
+        ExecutePosAll(2048, 1000, 50);
+    }
+    else if(strstr(cmd, "$CMD,PING") != NULL) {
+        PC_Send("$ACK,PING,PONG\n");
+    }
+    else if(strstr(cmd, "$CMD,STOP") != NULL) {
+        PC_Send("$ACK,STOP,OK\n");
+        ExecuteStop();
+    }
+    else if(strstr(cmd, "$CMD,POSALL") != NULL) {
+        // Parse:  $CMD,POSALL,<pos>,<speed>,<acc>
+        char *token = strtok(cmd, ",");  // $CMD
+        token = strtok(NULL, ",");        // POSALL
+        token = strtok(NULL, ",");        // position
+
+        if(token != NULL) {
+            s16 pos = atoi(token);
+            token = strtok(NULL, ",");
+            u16 spd = token ? atoi(token) : 1000;
+            token = strtok(NULL, ",");
+            u8 acc = token ? atoi(token) : 50;
+
+            PC_Send("$ACK,POSALL,OK\n");
+            ExecutePosAll(pos, spd, acc);
+        }
+    }
+}
+
+void ExecutePosAll(s16 position, u16 speed, u8 acc)
+{
+    if(position < 0) position = 0;
+    if(position > 4095) position = 4095;
+
+    sprintf(tx_buf, "$DBG,Moving all to %d\n", position);
+    PC_Send(tx_buf);
+
+    for(int i = 0; i < NUM_SERVOS; i++) {
+        STS3215_WritePosEx(&hservo, servo_ids[i], position, speed, acc);
+        HAL_Delay(10);
+    }
+}
+
+void ExecuteStop(void)
+{
+    for(int i = 0; i < NUM_SERVOS; i++) {
+        STS3215_WriteSpe(&hservo, servo_ids[i], 0, 0);
+    }
+}
+
 /* USER CODE END 0 */
+
+/*===========================================================================*/
+/*                              MAIN FUNCTION                                */
+/*===========================================================================*/
 
 int main(void)
 {
@@ -51,173 +178,52 @@ int main(void)
     SystemClock_Config();
 
     MX_GPIO_Init();
-    MX_USART1_UART_Init();  // Servo UART (PA9, 1Mbps)
-    MX_USART2_UART_Init();  // Debug UART (PA2, 115200)
+    MX_USART1_UART_Init();  // Servo (PA9, 1Mbps)
+    MX_USART2_UART_Init();  // PC Communication (PA2, 115200)
 
     /* USER CODE BEGIN 2 */
-    Debug_Print("\r\n============================================\r\n");
-    Debug_Print("  ST3215 Full Library Demo\r\n");
-    Debug_Print("============================================\r\n\r\n");
+
+    // Startup message
+    PC_Send("\n\n$READY,5\n");
+    PC_Send("$DBG,ST3215 Controller Started\n");
 
     // Initialize servo library
     STS3215_Init(&hservo, &huart1);
-    STS3215_SetLevel(&hservo, 1);  // Enable responses
+    STS3215_SetLevel(&hservo, 0);  // Silent mode - no responses from servos
 
-    // Ping servo
-    sprintf(debug_buf, "Pinging servo ID %d...  ", SERVO_ID);
-    Debug_Print(debug_buf);
+    PC_Send("$DBG,Servo library initialized\n");
 
-    int pingResult = STS3215_Ping(&hservo, SERVO_ID);
-    if(pingResult >= 0) {
-        sprintf(debug_buf, "Found!  (ID: %d)\r\n\r\n", pingResult);
-        Debug_Print(debug_buf);
-    } else {
-        Debug_Print("NOT FOUND!\r\n\r\n");
+    // Enable torque on all servos
+    for(int i = 0; i < NUM_SERVOS; i++) {
+        STS3215_EnableTorque(&hservo, servo_ids[i], 1);
+        HAL_Delay(20);
     }
 
-    // Enable torque
-    STS3215_EnableTorque(&hservo, SERVO_ID, 1);
-    HAL_Delay(100);
+    PC_Send("$DBG,Torque enabled on all servos\n");
+    PC_Send("$DBG,Ready for commands\n");
 
+    last_feedback_time = HAL_GetTick();
     /* USER CODE END 2 */
 
     /* Infinite loop */
     while (1)
     {
-        Debug_Print("\r\n>> Starting Demo Cycle\r\n");
+        // Check for incoming commands (polling)
+        CheckForCommand();
 
-        // Demo 1: Position Mode
-        Demo_PositionMode();
-        HAL_Delay(2000);
+        // Send feedback periodically
+        if((HAL_GetTick() - last_feedback_time) >= FEEDBACK_INTERVAL_MS) {
+            last_feedback_time = HAL_GetTick();
+            SendFeedbackToPC();
+        }
 
-        // Demo 2: Read Feedback
-        Demo_ReadFeedback();
-        HAL_Delay(1000);
-
-        // Demo 3:  Wheel Mode
-        Demo_WheelMode();
-        HAL_Delay(2000);
-
-        Debug_Print("\r\n>> Demo Cycle Complete\r\n");
-        HAL_Delay(3000);
+        HAL_Delay(1);  // Small delay to prevent tight loop
     }
 }
 
-/* USER CODE BEGIN 4 */
-void Demo_PositionMode(void)
-{
-    Debug_Print("\r\n=== POSITION MODE DEMO ===\r\n");
-
-    // Set to servo mode
-    STS3215_ServoMode(&hservo, SERVO_ID);
-    HAL_Delay(100);
-
-    // Move to center (2048)
-    Debug_Print("Moving to position 2048 (center)...\r\n");
-    STS3215_WritePosEx(&hservo, SERVO_ID, 2048, 1000, 50);
-    HAL_Delay(1500);
-
-    // Move to position 1024
-    Debug_Print("Moving to position 1024...\r\n");
-    STS3215_WritePosEx(&hservo, SERVO_ID, 1024, 1000, 50);
-    HAL_Delay(1500);
-
-    // Move to position 3072
-    Debug_Print("Moving to position 3072...\r\n");
-    STS3215_WritePosEx(&hservo, SERVO_ID, 3072, 1000, 50);
-    HAL_Delay(1500);
-
-    // Back to center
-    Debug_Print("Moving back to center...\r\n");
-    STS3215_WritePosEx(&hservo, SERVO_ID, 2048, 1000, 50);
-    HAL_Delay(1500);
-}
-
-void Demo_WheelMode(void)
-{
-    Debug_Print("\r\n=== WHEEL MODE DEMO ===\r\n");
-
-    // Set to wheel mode
-    STS3215_WheelMode(&hservo, SERVO_ID);
-    HAL_Delay(100);
-
-    // Rotate forward
-    Debug_Print("Rotating forward (speed 1000)...\r\n");
-    STS3215_WriteSpe(&hservo, SERVO_ID, 1000, 50);
-    HAL_Delay(2000);
-
-    // Stop
-    Debug_Print("Stopping...\r\n");
-    STS3215_WriteSpe(&hservo, SERVO_ID, 0, 50);
-    HAL_Delay(500);
-
-    // Rotate backward
-    Debug_Print("Rotating backward (speed -1000)...\r\n");
-    STS3215_WriteSpe(&hservo, SERVO_ID, -1000, 50);
-    HAL_Delay(2000);
-
-    // Stop
-    Debug_Print("Stopping...\r\n");
-    STS3215_WriteSpe(&hservo, SERVO_ID, 0, 50);
-    HAL_Delay(500);
-
-    // Return to servo mode
-    STS3215_ServoMode(&hservo, SERVO_ID);
-}
-
-void Demo_ReadFeedback(void)
-{
-    Debug_Print("\r\n=== FEEDBACK READING ===\r\n");
-
-    // Read individual values
-    int pos = STS3215_ReadPos(&hservo, SERVO_ID);
-    int temp = STS3215_ReadTemper(&hservo, SERVO_ID);
-    int volt = STS3215_ReadVoltage(&hservo, SERVO_ID);
-    int load = STS3215_ReadLoad(&hservo, SERVO_ID);
-    int moving = STS3215_ReadMove(&hservo, SERVO_ID);
-
-    sprintf(debug_buf, "Position:     %d\r\n", pos);
-    Debug_Print(debug_buf);
-
-    sprintf(debug_buf, "Temperature:  %d C\r\n", temp);
-    Debug_Print(debug_buf);
-
-    sprintf(debug_buf, "Voltage:     %d. %d V\r\n", volt/10, volt%10);
-    Debug_Print(debug_buf);
-
-    sprintf(debug_buf, "Load:        %d\r\n", load);
-    Debug_Print(debug_buf);
-
-    sprintf(debug_buf, "Moving:      %s\r\n", moving ? "Yes" : "No");
-    Debug_Print(debug_buf);
-
-    // Or read all at once
-    Debug_Print("\r\nFull feedback read:\r\n");
-    if(STS3215_FeedBack(&hservo, SERVO_ID, &feedback) > 0) {
-        sprintf(debug_buf, "  Pos: %d, Spd: %d, Load: %d\r\n",
-                feedback.Position, feedback.Speed, feedback.Load);
-        Debug_Print(debug_buf);
-        sprintf(debug_buf, "  Temp: %dC, Volt:  %d.%dV, Curr: %dmA\r\n",
-                feedback.Temperature, feedback.Voltage/10, feedback. Voltage%10, feedback.Current);
-        Debug_Print(debug_buf);
-    }
-}
-
-void Demo_MultiServo(void)
-{
-    // Example for controlling multiple servos synchronously
-    // Uncomment and modify if you have multiple servos
-
-    /*
-    u8 ids[] = {1, 2, 3};
-    s16 positions[] = {1024, 2048, 3072};
-    u16 speeds[] = {500, 500, 500};
-    u8 accs[] = {50, 50, 50};
-
-    STS3215_SyncWritePosEx(&hservo, ids, 3, positions, speeds, accs);
-    */
-}
-/* USER CODE END 4 */
+/*===========================================================================*/
+/*                         SYSTEM CONFIGURATION                              */
+/*===========================================================================*/
 
 void SystemClock_Config(void)
 {
@@ -226,7 +232,7 @@ void SystemClock_Config(void)
 
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
     RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-    RCC_OscInitStruct. HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+    RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
     RCC_OscInitStruct.PLL. PLLState = RCC_PLL_ON;
     RCC_OscInitStruct. PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
     RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL16;
@@ -234,7 +240,7 @@ void SystemClock_Config(void)
         Error_Handler();
     }
 
-    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+    RCC_ClkInitStruct. ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                                 |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
     RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
     RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
