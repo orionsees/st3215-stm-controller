@@ -12,7 +12,7 @@
 #include "gpio.h"
 
 /* USER CODE BEGIN Includes */
-#include "sts3215_servo. h"
+#include "sts3215_servo.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
