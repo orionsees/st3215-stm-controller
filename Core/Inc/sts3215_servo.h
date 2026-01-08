@@ -1,17 +1,10 @@
-/*
- * scs15_servo.h
- *
- *  Created on: Aug 13, 2024
- *      Author: user
- */
-
 #ifndef INC_STS3215_SERVO_H_
 #define INC_STS3215_SERVO_H_
 
 #include <stdlib.h>
 #include "usart.h"
 
-#define STS3215_UART &huart2
+#define STS3215_UART &huart1    // Changed from huart2 to huart1
 #define BIG_ENDIAN_PERIPHERAL 0
 
 // Commands
