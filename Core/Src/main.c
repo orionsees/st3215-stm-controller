@@ -2,28 +2,17 @@
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
+  * @brief          : Main program body with ST3215 servo control
   ******************************************************************************
   */
 /* USER CODE END Header */
-/* Includes ------------------------------------------------------------------*/
+
 #include "main.h"
 #include "usart.h"
 #include "gpio.h"
 
-/* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "sts3215_servo. h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,7 +22,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define STS3215_ID 1              // Servo ID (default is 1)
+#define SERVO_TEST_DELAY 2000     // ms delay between commands
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -44,16 +34,17 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+uint32_t sys_tick_counter = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-/* USER CODE BEGIN PFP */
 
-/* USER CODE END PFP */
+/* USER CODE BEGIN FPP */
+void TestServoMotorMode(void);
+void TestServoPositionMode(void);
+/* USER CODE END FPP */
 
-/* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
@@ -64,14 +55,11 @@ void SystemClock_Config(void);
   */
 int main(void)
 {
-
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
 
-  /* MCU Configuration--------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  /* MCU Configuration*/
   HAL_Init();
 
   /* USER CODE BEGIN Init */
@@ -88,7 +76,17 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+
   /* USER CODE BEGIN 2 */
+
+  // Print startup message
+  printf("ST3215 Servo Motor Control Started!\r\n");
+  printf("Servo ID: %d\r\n", STS3215_ID);
+
+  // Set servo to silent mode (no response feedback)
+  printf("Setting servo to silent mode...\r\n");
+  STS3215SetSilentMode(STS3215_ID);
+  HAL_Delay(100);
 
   /* USER CODE END 2 */
 
@@ -99,6 +97,16 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+    printf("\n========== TEST 1: MOTOR MODE ==========\r\n");
+    TestServoMotorMode();
+
+    HAL_Delay(3000);
+
+    printf("\n========== TEST 2: POSITION MODE ==========\r\n");
+    TestServoPositionMode();
+
+    HAL_Delay(3000);
   }
   /* USER CODE END 3 */
 }
@@ -120,7 +128,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL16;
+  RCC_OscInitStruct.PLL. PLLMUL = RCC_PLL_MUL16;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -132,7 +140,7 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct. APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
@@ -142,6 +150,66 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+/**
+  * @brief Test servo in motor (continuous rotation) mode
+  */
+void TestServoMotorMode(void)
+{
+  printf("Switching to MOTOR MODE...\r\n");
+  STS3215SetMotorMode(STS3215_ID);
+  HAL_Delay(200);
+
+  // Rotate forward at speed 2000
+  printf("Rotating FORWARD at speed 2000.. .\r\n");
+  STS3215SetSpeed(STS3215_ID, 2000);
+  HAL_Delay(SERVO_TEST_DELAY);
+
+  // Stop
+  printf("Stopping motor...\r\n");
+  STS3215SetSpeed(STS3215_ID, 0);
+  HAL_Delay(500);
+
+  // Rotate backward at speed -2000
+  printf("Rotating BACKWARD at speed -2000.. .\r\n");
+  STS3215SetSpeed(STS3215_ID, -2000);
+  HAL_Delay(SERVO_TEST_DELAY);
+
+  // Stop
+  printf("Stopping motor...\r\n");
+  STS3215SetSpeed(STS3215_ID, 0);
+  HAL_Delay(500);
+}
+
+/**
+  * @brief Test servo in position (servo) mode
+  */
+void TestServoPositionMode(void)
+{
+  printf("Switching to SERVO (POSITION) MODE...\r\n");
+  STS3215SetServoMode(STS3215_ID);
+  HAL_Delay(200);
+
+  // Move to position 256 (center)
+  printf("Moving to CENTER position (256)...\r\n");
+  STS3215TurnToPosition(STS3215_ID, 256, 500, 500, 100);
+  HAL_Delay(SERVO_TEST_DELAY);
+
+  // Move to position 512 (one direction)
+  printf("Moving to position 512.. .\r\n");
+  STS3215TurnToPosition(STS3215_ID, 512, 500, 500, 100);
+  HAL_Delay(SERVO_TEST_DELAY);
+
+  // Move to position 0 (other direction)
+  printf("Moving to position 0...\r\n");
+  STS3215TurnToPosition(STS3215_ID, 0, 500, 500, 100);
+  HAL_Delay(SERVO_TEST_DELAY);
+
+  // Back to center
+  printf("Moving back to CENTER position (256)...\r\n");
+  STS3215TurnToPosition(STS3215_ID, 256, 500, 500, 100);
+  HAL_Delay(SERVO_TEST_DELAY);
+}
 
 /* USER CODE END 4 */
 
@@ -159,12 +227,13 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-#ifdef USE_FULL_ASSERT
+
+#ifdef  USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
   * @param  file: pointer to the source file name
-  * @param  line: assert_param error line source number
+  * @param  line:  assert_param error line source number
   * @retval None
   */
 void assert_failed(uint8_t *file, uint32_t line)
