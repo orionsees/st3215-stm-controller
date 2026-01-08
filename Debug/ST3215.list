@@ -37,15 +37,15 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  16 .debug_macro  0001809b  00000000  00000000  0000db5e  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   00008d8d  00000000  00000000  00025bf9  2**0
+ 17 .debug_line   00008d8b  00000000  00000000  00025bf9  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    000840ac  00000000  00000000  0002e986  2**0
+ 18 .debug_str    000840ac  00000000  00000000  0002e984  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000043  00000000  00000000  000b2a32  2**0
+ 19 .comment      00000043  00000000  00000000  000b2a30  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  000023c4  00000000  00000000  000b2a78  2**2
+ 20 .debug_frame  000023c4  00000000  00000000  000b2a74  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 21 .debug_line_str 0000004c  00000000  00000000  000b4e3c  2**0
+ 21 .debug_line_str 0000004c  00000000  00000000  000b4e38  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -335,7 +335,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
  80002ca:	2300      	movs	r3, #0
  80002cc:	63bb      	str	r3, [r7, #56]	@ 0x38
-  RCC_OscInitStruct.PLL. PLLMUL = RCC_PLL_MUL16;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL16;
  80002ce:	f44f 1360 	mov.w	r3, #3670016	@ 0x380000
  80002d2:	63fb      	str	r3, [r7, #60]	@ 0x3c
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
@@ -362,7 +362,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
  80002f0:	2300      	movs	r3, #0
  80002f2:	60fb      	str	r3, [r7, #12]
-  RCC_ClkInitStruct. APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
  80002f4:	f44f 6380 	mov.w	r3, #1024	@ 0x400
  80002f8:	613b      	str	r3, [r7, #16]
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
