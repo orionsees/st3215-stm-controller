@@ -23,7 +23,7 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h \
  ../Core/Inc/usart.h ../Core/Inc/main.h ../Core/Inc/gpio.h \
- ../Core/Inc/sts3215_servo.h ../Core/Inc/usart.h
+ ../Core/Inc/sts3215.h ../Core/Inc/usart.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h:
 ../Core/Inc/stm32f1xx_hal_conf.h:
@@ -51,5 +51,5 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Core/Inc/usart.h:
 ../Core/Inc/main.h:
 ../Core/Inc/gpio.h:
-../Core/Inc/sts3215_servo.h:
+../Core/Inc/sts3215.h:
 ../Core/Inc/usart.h:

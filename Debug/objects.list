@@ -2,7 +2,7 @@
 "./Core/Src/main.o"
 "./Core/Src/stm32f1xx_hal_msp.o"
 "./Core/Src/stm32f1xx_it.o"
-"./Core/Src/sts3215_servo.o"
+"./Core/Src/sts3215.o"
 "./Core/Src/syscalls.o"
 "./Core/Src/sysmem.o"
 "./Core/Src/system_stm32f1xx.o"

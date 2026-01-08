@@ -1,6 +1,5 @@
-Core/Src/sts3215_servo.o: ../Core/Src/sts3215_servo.c \
- ../Core/Inc/sts3215_servo.h ../Core/Inc/usart.h ../Core/Inc/main.h \
- ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h \
+Core/Src/sts3215.o: ../Core/Src/sts3215.c ../Core/Inc/sts3215.h \
+ ../Core/Inc/main.h ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h \
  ../Core/Inc/stm32f1xx_hal_conf.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h \
@@ -22,9 +21,9 @@ Core/Src/sts3215_servo.o: ../Core/Src/sts3215_servo.c \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h \
- ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h
-../Core/Inc/sts3215_servo.h:
-../Core/Inc/usart.h:
+ ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h \
+ ../Core/Inc/usart.h
+../Core/Inc/sts3215.h:
 ../Core/Inc/main.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h:
 ../Core/Inc/stm32f1xx_hal_conf.h:
@@ -49,3 +48,4 @@ Core/Src/sts3215_servo.o: ../Core/Src/sts3215_servo.c \
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h:
+../Core/Inc/usart.h:
